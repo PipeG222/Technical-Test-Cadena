@@ -1,148 +1,227 @@
 # Technical Test — Cadena
 
-> Practical Component (50%) + AWS & DevOps Concepts (50%)
+> Componente Práctico (50%) + Conceptos AWS & DevOps (50%)
 
 ---
 
-## Repository Structure
+## Estructura del Repositorio
 
 ```
 Technical-Test-Cadena/
 ├── python/
-│   ├── prime_sum.py          # Exercise 1 — Sum of primes
+│   ├── prime_sum.py          # Ejercicio 1 — Suma de primos
 │   ├── requirements.txt
 │   └── tests/
-│       └── test_prime_sum.py
+│       └── test_prime_sum.py # 24 pruebas unitarias
 │
 ├── csharp/
 │   └── PalindromeApp/
 │       ├── PalindromeApp.sln
 │       ├── PalindromeApp/
-│       │   ├── PalindromeChecker.cs   # Exercise 2 — Palindrome checker
+│       │   ├── PalindromeChecker.cs   # Ejercicio 2 — Verificador de palíndromos
 │       │   └── Program.cs
 │       └── PalindromeApp.Tests/
-│           └── PalindromeCheckerTests.cs
+│           └── PalindromeCheckerTests.cs  # 19 pruebas unitarias
 │
 ├── aws/
-│   └── answers.md            # AWS & DevOps written answers (questions 1–5)
+│   └── answers.md            # Respuestas escritas AWS & DevOps (preguntas 1–5)
 │
 └── docs/
-    └── architecture.md       # Algorithm diagrams and architecture notes
+    └── architecture.md       # Diagramas de algoritmos y arquitectura
 ```
 
 ---
 
-## Exercise 1 — Python: Sum of Prime Numbers
+## Por qué este enfoque
 
-### Approach
+En lugar de entregar código aislado, esta solución aplica las mismas prácticas que se usan en equipos de desarrollo profesionales:
 
-The function uses the **Sieve of Eratosthenes** — a classical algorithm with
-*O(M log log M)* time complexity (where *M* is the maximum value in the list)
-that pre-computes primality for every integer up to *M* in a single pass.
-This makes per-element lookup *O(1)*, which is critical for large lists.
+| Práctica | Aplicación en esta prueba |
+|---|---|
+| **Algoritmos eficientes** | Sieve of Eratosthenes O(M log log M) en Python; two-pointer O(n) en C# |
+| **Manejo de errores explícito** | Excepciones con mensajes descriptivos que identifican índice y tipo del valor inválido |
+| **Pruebas unitarias** | 24 tests en Python (pytest) y 19 en C# (xUnit) cubriendo casos felices, borde y errores |
+| **Cobertura de casos borde** | Listas vacías, booleanos, floats, negativos, strings de 1 M de caracteres |
+| **Zero heap allocations (C#)** | `stackalloc` + `Span<char>` para strings cortos — sin presión al GC |
+| **Separación de responsabilidades** | Lógica de negocio (`PalindromeChecker`) desacoplada del punto de entrada (`Program.cs`) |
+| **Infraestructura como código** | Ejemplos AWS con CloudFormation / SAM listos para desplegarse |
 
-**Why not trial division per element?**  
-For a list of 100 000 integers with values up to 10 000, trial division would
-run up to ~100 checks per element (√10 000 = 100), totalling ~10 M operations.
-The sieve builds a 10 K boolean array in ~23 K operations and then resolves
-every element in *O(1)* — orders of magnitude faster.
+---
 
-### Run
+## Ejercicio 1 — Python: Suma de Números Primos
 
-```bash
-# Install dependencies
-pip install -r python/requirements.txt
+### Algoritmo
 
-# Smoke test
-python -m python.prime_sum
+Se utiliza la **Criba de Eratóstenes** en lugar de verificar cada número individualmente (división por prueba).
 
-# Unit tests with coverage report
-pytest python/tests/ -v --cov=python --cov-report=term-missing
+**¿Por qué?**  
+Para una lista de 100 000 enteros con valores hasta 10 000, la división por prueba ejecuta hasta ~100 operaciones por elemento (√10 000), totalizando ~10 M operaciones. La criba construye un arreglo booleano de 10 K posiciones en ~23 K operaciones y resuelve cada elemento en O(1) — órdenes de magnitud más rápido.
+
+```
+Complejidad temporal:  O(n + M log log M)   donde M = max(lista)
+Complejidad espacial:  O(n + M)
 ```
 
-### Expected output
+### Correr el ejercicio
 
+```bash
+# Desde la raíz del repositorio
+git clone https://github.com/PipeG222/Technical-Test-Cadena.git
+cd Technical-Test-Cadena
+
+# 1. Instalar dependencias
+pip install -r python/requirements.txt
+
+# 2. Prueba rápida (caso del enunciado)
+python -m python.prime_sum
+```
+
+**Salida esperada:**
 ```
 Input : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 Output: 17
 ```
 
-### Error handling
+### Correr las pruebas unitarias
 
-| Scenario | Behaviour |
+```bash
+# Ejecutar las 24 pruebas con detalle
+pytest python/tests/ -v
+
+# Con reporte de cobertura de código
+pytest python/tests/ -v --cov=python --cov-report=term-missing
+```
+
+**Salida esperada:**
+```
+python/tests/test_prime_sum.py::TestIsPrime::test_zero_is_not_prime         PASSED
+python/tests/test_prime_sum.py::TestIsPrime::test_large_prime               PASSED
+python/tests/test_prime_sum.py::TestSumOfPrimesHappyPath::test_example_from_spec PASSED
+python/tests/test_prime_sum.py::TestSumOfPrimesHappyPath::test_large_list   PASSED
+...
+24 passed in 0.10s
+```
+
+**Qué cubren las pruebas:**
+
+| Grupo | Casos |
 |---|---|
-| Non-iterable input (e.g. `42`) | `TypeError` with descriptive message |
-| Non-integer element (e.g. `"two"`, `2.0`, `None`) | `TypeError` identifying index and type |
-| Boolean element (`True`/`False`) | `TypeError` — booleans are semantically invalid |
-| Negative integer | `ValueError` identifying index and value |
-| Empty list | Returns `0` |
+| `TestIsPrime` | 0, 1, 2, 3, números compuestos, primo grande (7 919) |
+| `TestSumOfPrimesHappyPath` | Ejemplo del enunciado, lista vacía, sin primos, todos primos, duplicados, generadores, lista de 10 000 elementos |
+| `TestSumOfPrimesErrors` | No iterable, float, string, None, bool, entero negativo |
+
+### Manejo de errores
+
+| Escenario | Comportamiento |
+|---|---|
+| Entrada no iterable (ej. `42`) | `TypeError` con mensaje descriptivo |
+| Elemento no entero (ej. `"dos"`, `2.0`, `None`) | `TypeError` indicando índice y tipo |
+| Elemento booleano (`True`/`False`) | `TypeError` — booleanos son semánticamente inválidos |
+| Entero negativo | `ValueError` indicando índice y valor |
+| Lista vacía | Retorna `0` |
 
 ---
 
-## Exercise 2 — C#: Palindrome Checker
+## Ejercicio 2 — C#: Verificador de Palíndromos
 
-### Approach
+### Algoritmo
 
-1. **Normalise** — a single O(n) pass filters out non-alphanumeric characters
-   and converts to lower-case into a `Span<char>` buffer.  For strings ≤ 256
-   characters the buffer is stack-allocated (`stackalloc`), producing **zero
-   heap allocations** and no GC pressure.
-2. **Two-pointer check** — left/right pointers advance toward the centre;
-   short-circuits on the first mismatch.  Total: *O(n)* time, *O(n)* space.
+1. **Normalización** — un único recorrido O(n) filtra caracteres no alfanuméricos y convierte a minúsculas en un buffer `Span<char>`. Para strings ≤ 256 caracteres el buffer se aloja en el **stack** (`stackalloc`), produciendo **cero allocations en el heap** y sin presión al GC.
+2. **Verificación two-pointer** — punteros izquierdo/derecho avanzan hacia el centro; cortocircuita en el primer mismatch.
 
-### Run
+```
+Complejidad temporal:  O(n)
+Complejidad espacial:  O(n)  — un único buffer, sin copias adicionales
+```
+
+### Correr el ejercicio
 
 ```bash
-# Run console application
+# Desde la raíz del repositorio
 cd csharp/PalindromeApp
 dotnet run --project PalindromeApp/PalindromeApp.csproj
-
-# Run unit tests
-dotnet test PalindromeApp.Tests/PalindromeApp.Tests.csproj --logger "console;verbosity=normal"
 ```
 
-### Expected output
-
+**Salida esperada:**
 ```
+=== Palindrome Checker ===
+
 Enter a string (or 'exit' to quit): A man a plan a canal Panama
 Output: True
 
 Enter a string (or 'exit' to quit): hello
 Output: False
+
+Enter a string (or 'exit' to quit): exit
 ```
 
-### Error handling
+### Correr las pruebas unitarias
 
-| Scenario | Behaviour |
+```bash
+# Desde la raíz del repositorio
+dotnet test csharp/PalindromeApp/PalindromeApp.Tests/PalindromeApp.Tests.csproj --logger "console;verbosity=minimal"
+```
+
+**Salida esperada:**
+```
+Correctas! - Con error: 0, Superado: 19, Omitido: 0, Total: 19, Duración: 35 ms
+```
+
+**Qué cubren las pruebas:**
+
+| Grupo | Casos |
 |---|---|
-| `null` input | `ArgumentNullException` |
-| Input longer than 5 000 000 characters | `ArgumentException` with length info |
-| Empty or whitespace-only string | Returns `false` |
-| String with only punctuation/spaces | Returns `false` |
+| Casos del enunciado | "A man a plan a canal Panama" → `true` |
+| Palíndromos válidos | racecar, Madam, No lemon no melon, numéricos (12321) |
+| No palíndromos | hello, world, frases normales |
+| Casos borde | carácter único, solo puntuación, solo espacios, string vacío |
+| Rendimiento | String de 1 000 000 de caracteres (palíndromo y no palíndromo) |
+| Errores | `null` → `ArgumentNullException`, input > 5 M chars → `ArgumentException` |
+
+### Manejo de errores
+
+| Escenario | Comportamiento |
+|---|---|
+| `null` | `ArgumentNullException` |
+| Input mayor a 5 000 000 caracteres | `ArgumentException` con detalle de longitud |
+| String vacío o solo espacios | Retorna `false` |
+| Solo puntuación/símbolos | Retorna `false` |
 
 ---
 
-## AWS Services & DevOps (Questions 1–5)
+## AWS Services & DevOps (Preguntas 1–5)
 
-Detailed written answers with architecture diagrams and code snippets:
+Respuestas detalladas con diagramas de arquitectura y fragmentos de código en:
 
 **[aws/answers.md](aws/answers.md)**
 
-Topics covered:
+| # | Tema |
+|---|---|
+| 1 | Amazon RDS vs DynamoDB — tabla comparativa y casos de uso desde perspectiva del desarrollador |
+| 2 | AWS Lambda & serverless — servicio de thumbnails con función Lambda y template SAM completo |
+| 3 | DevOps — CI/CD, IaC, CodeCommit / CodeBuild / CodeDeploy / CodePipeline |
+| 4 | Pipeline CI/CD — `buildspec.yml`, `appspec.yml`, stack CloudFormation completo |
+| 5 | Amazon S3 — upload, download, pre-signed URLs y listado paginado con boto3 |
 
-1. Amazon RDS vs DynamoDB — comparison table, developer use-case guidance
-2. AWS Lambda & serverless — image thumbnail service with SAM template
-3. DevOps concepts — CI/CD, IaC, CodeCommit / CodeBuild / CodeDeploy / CodePipeline
-4. CI/CD pipeline setup — `buildspec.yml`, `appspec.yml`, CloudFormation pipeline stack
-5. Amazon S3 — upload, download, pre-signed URLs, paginated listing (Python / boto3)
+### Sobre los fragmentos de código AWS
+
+Los fragmentos en `aws/answers.md` son ejemplos funcionales diseñados para ejecutarse dentro del ecosistema AWS, no como scripts locales. Cada uno se ejecuta en su contexto correspondiente:
+
+| Fragmento | Cómo se ejecuta |
+|---|---|
+| **Función Lambda (Python)** | Desplegada con AWS SAM CLI: `sam build && sam deploy --guided` |
+| **boto3 — S3 upload/download** | Localmente con credenciales configuradas: `aws configure && python script.py` |
+| **CloudFormation pipeline** | `aws cloudformation deploy --template-file pipeline.yaml --stack-name my-pipeline --capabilities CAPABILITY_IAM` |
+| **buildspec.yml / appspec.yml** | Los lee CodeBuild/CodeDeploy automáticamente al ejecutarse el pipeline — no requieren invocación manual |
 
 ---
 
-## Requirements
+## Requisitos
 
-| Tool | Version |
+| Herramienta | Versión |
 |---|---|
 | Python | 3.11+ |
-| pytest | 8.x |
+| pytest + pytest-cov | 8.x |
 | .NET SDK | 8.0+ |
-| AWS CLI (optional, for AWS examples) | 2.x |
+| AWS CLI *(opcional, para ejemplos AWS)* | 2.x |
+| AWS SAM CLI *(opcional, para Lambda)* | 1.x |
